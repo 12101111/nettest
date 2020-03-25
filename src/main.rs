@@ -250,7 +250,7 @@ fn analisys(results: Vec<Measurement>, err_count: usize) {
             let min = *times.iter().min().unwrap();
             let max = *times.iter().max().unwrap();
             let avg = total / (received as u32);
-            let ms = |t| format!("{:.3}", t.as_micros() as f64 / 1000.0);
+            let ms = |t: Duration| format!("{:.3}", t.as_micros() as f64 / 1000.0);
             let mdev = ((times
                 .iter()
                 .map(|t| t.as_nanos() as i128)
