@@ -151,7 +151,7 @@ impl PingTask {
 
 impl Task for PingTask {
     fn run(&mut self) -> Result<Measurement> {
-        let rand_str = Xoshiro256Plus::seed_from_u64(self.echo_hdr.time_stamp)
+        let rand_str = Xoshiro256Plus::from_entropy()
             .sample_iter(&rand::distributions::Alphanumeric)
             .map(|x| x as u8)
             .take(self.size - size_of::<Icmphdr>());

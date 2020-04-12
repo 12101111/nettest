@@ -1,28 +1,20 @@
 [package]
-name = 'nettest'
-version = '0.1.0'
-authors = ['12101111 <w12101111@gmail.com>']
-edition = '2018'
+name = "tcpserver"
+version = "0.1.0"
+authors = ["12101111 <w12101111@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 rand_xoshiro = '0.4'
-log = '0.4'
 anyhow = '1'
-structopt = '0.3'
-quiche = '0.3'
 
 [dependencies.rand]
 version = '0.7'
 default-features = false
 features = ['getrandom']
 
-[dependencies.socket2]
-git = 'https://github.com/alexcrichton/socket2-rs.git'
 [patch.crates-io.rand]
 git = 'https://github.com/rust-random/rand.git'
 
 [patch.crates-io.rand_core]
 git = 'https://github.com/rust-random/rand.git'
-
-[workspace]
-members = [".", "server", "tcpserver"]

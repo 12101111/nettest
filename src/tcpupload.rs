@@ -6,26 +6,18 @@ use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256Plus;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
-pub struct SpeedtestUploadTask {
+pub struct TcpuploadTask {
     addr: SocketAddr,
     timeout: Duration,
     size: usize,
 }
 
-impl SpeedtestUploadTask {
-    pub fn new(
-        server: &str,
-        sponsor: &str,
-        size: usize,
-        timeout: u64,
-    ) -> Result<SpeedtestUploadTask> {
-        info!(
-            "Speedtest upload test, connecting to {} ({})",
-            sponsor, server
-        );
-        Ok(SpeedtestUploadTask {
+impl TcpuploadTask {
+    pub fn new(server: &str, size: usize, timeout: u64) -> Result<TcpuploadTask> {
+        info!("TCP upload test, connecting to {}", server);
+        Ok(TcpuploadTask {
             addr: server
                 .to_socket_addrs()
                 .context("Can't resolve IP address")?
@@ -37,43 +29,32 @@ impl SpeedtestUploadTask {
     }
 }
 
-impl Task for SpeedtestUploadTask {
+impl Task for TcpuploadTask {
     fn run(&mut self) -> Result<Measurement> {
         let mut stream = TcpStream::connect_timeout(&self.addr, self.timeout)?;
         stream.set_read_timeout(Some(self.timeout))?;
         stream.set_write_timeout(Some(self.timeout))?;
-        info!("Upload {} MiB to {}", self.size, self.addr);
-        let mut buffer = Vec::with_capacity(2 * MB + 2);
-        let time_stamp = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let mut rng = Xoshiro256Plus::seed_from_u64(time_stamp);
+        info!("Upload {} Bytes to {}", self.size, self.addr);
+        let mut rand_pool = Vec::with_capacity(2 * MB);
+        let mut rng = Xoshiro256Plus::from_entropy();
         for _ in 0..2 * MB {
-            buffer.push(rng.gen_range(0x20, 0x7F));
+            rand_pool.push(rng.gen_range(0x20, 0x7F));
         }
-        buffer.extend(b"\r\n");
-        let size = self.size * MB;
+        let size = self.size; //* MB;//FIXME: change back!!!
         let ulstring = format!("UPLOAD {} 0\r\n", size);
         stream.write_all(ulstring.as_bytes())?;
-        let rand_size = size - ulstring.len();
+        let mut rand_size = size - ulstring.len() - 1; // \r\n count into 1 byte, wierd
         let mut line = String::new();
         let now = Instant::now();
         let mut old = now;
-        let mut len = 0;
-        let mut old_len = 0;
+        let mut old_size = rand_size;
         let step = (size / 32).max(MB);
-        loop {
-            let (start, end) = if len + MB < rand_size {
-                let start = rng.gen_range(0, MB);
-                (start, start + MB)
-            } else {
-                let left = 2 * MB - (rand_size - len);
-                (left, buffer.len())
-            };
-            stream.write_all(&buffer[start..end])?;
-            len += end - start;
-            let len_since_last_measure = len - old_len;
+        while rand_size > 0 {
+            let start = rng.gen_range(0, MB);
+            let len = rand_size.min(MB);
+            stream.write_all(&rand_pool[start..start+len])?;
+            rand_size -= len;
+            let len_since_last_measure = old_size - rand_size;
             if len_since_last_measure >= step {
                 let time = old.elapsed().as_micros();
                 info!(
@@ -83,15 +64,15 @@ impl Task for SpeedtestUploadTask {
                     len_since_last_measure as f64 / (time as f64) * 8.0
                 );
                 old = Instant::now();
-                old_len = len;
-            }
-            if buffer.len() == end {
-                break;
+                old_size = rand_size;
             }
         }
+        stream.write_all(b"\r\n")?;
         let mut reader = BufReader::new(stream);
         reader.read_line(&mut line)?;
         let time = now.elapsed();
-        Ok(Measurement::Speed(len, time))
+        stream = reader.into_inner();
+        let _ = stream.write_all(b"QUIT\r\n");
+        Ok(Measurement::Speed(size, time))
     }
 }

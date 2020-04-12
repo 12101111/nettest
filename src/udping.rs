@@ -21,39 +21,29 @@ impl UdpingTask {
             .context("Can't resolve IP address")?
             .next()
             .ok_or(anyhow!("Don't have IP address"))?;
-        let localaddr = if target.is_ipv4() {
-            net::Ipv4Addr::UNSPECIFIED.into()
-        } else if target.is_ipv6() {
-            net::Ipv6Addr::UNSPECIFIED.into()
-        } else {
-            unreachable!("IP is either ipv4 or ipv6");
+        let localaddr = match target {
+            SocketAddr::V4(_) => net::Ipv4Addr::UNSPECIFIED.into(),
+            SocketAddr::V6(_) => net::Ipv6Addr::UNSPECIFIED.into(),
         };
-        const PORT_BEGIN: u16 = 10000;
-        let mut localsocket = SocketAddr::new(localaddr, PORT_BEGIN);
-        for port in PORT_BEGIN..u16::MAX {
-            localsocket.set_port(port);
-            if let Ok(socket) = UdpSocket::bind(localsocket) {
-                socket
-                    .connect(target)
-                    .with_context(|| anyhow!("Failed to connect to {}", target))?;
-                let timeout = Duration::from_secs(timeout);
-                socket.set_read_timeout(Some(timeout))?;
-                socket.set_write_timeout(Some(timeout))?;
-                let format_target = target.to_string();
-                if format_target != addr {
-                    info!("Ping to {} ({}) using UDP", addr, format_target);
-                } else {
-                    info!("Ping to {} using UDP", format_target);
-                }
-                return Ok(Self {
-                    target,
-                    socket,
-                    seq: 0,
-                    size,
-                });
-            }
+        let socket = UdpSocket::bind(SocketAddr::new(localaddr, 0))?;
+        socket
+            .connect(target)
+            .with_context(|| anyhow!("Failed to connect to {}", target))?;
+        let timeout = Duration::from_secs(timeout);
+        socket.set_read_timeout(Some(timeout))?;
+        socket.set_write_timeout(Some(timeout))?;
+        let format_target = target.to_string();
+        if format_target != addr {
+            info!("Ping to {} ({}) using UDP", addr, format_target);
+        } else {
+            info!("Ping to {} using UDP", format_target);
         }
-        unreachable!()
+        return Ok(Self {
+            target,
+            socket,
+            seq: 0,
+            size,
+        });
     }
 }
 

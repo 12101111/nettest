@@ -6,24 +6,16 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
-pub struct SpeedtestDownloadTask {
+pub struct TcpdownloadTask {
     addr: SocketAddr,
     timeout: Duration,
     size: usize,
 }
 
-impl SpeedtestDownloadTask {
-    pub fn new(
-        server: &str,
-        sponsor: &str,
-        size: usize,
-        timeout: u64,
-    ) -> Result<SpeedtestDownloadTask> {
-        info!(
-            "Speedtest upload test, connecting to {} ({})",
-            sponsor, server
-        );
-        Ok(SpeedtestDownloadTask {
+impl TcpdownloadTask {
+    pub fn new(server: &str, size: usize, timeout: u64) -> Result<TcpdownloadTask> {
+        info!("TCP download test, connecting to {}", server);
+        Ok(TcpdownloadTask {
             addr: server
                 .to_socket_addrs()
                 .context("Can't resolve IP address")?
@@ -35,7 +27,7 @@ impl SpeedtestDownloadTask {
     }
 }
 
-impl Task for SpeedtestDownloadTask {
+impl Task for TcpdownloadTask {
     fn run(&mut self) -> Result<Measurement> {
         let mut stream = TcpStream::connect_timeout(&self.addr, self.timeout)?;
         stream.set_read_timeout(Some(self.timeout))?;
@@ -72,6 +64,8 @@ impl Task for SpeedtestDownloadTask {
             reader.consume(length);
         }
         let time = now.elapsed();
+        stream = reader.into_inner();
+        let _ = stream.write_all(b"QUIT\r\n");
         Ok(Measurement::Speed(len, time))
     }
 }
