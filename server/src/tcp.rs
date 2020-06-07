@@ -54,12 +54,13 @@ async fn handle_stream(mut stream: TcpStream, rand_pool: &[u8]) -> Result<()> {
             Ok(HandleState::Next) => continue,
         }
     }
-    println!("Disconnect with {}",stream.peer_addr()?);
+    println!("Disconnect with {}", stream.peer_addr()?);
     let _ = stream.shutdown(std::net::Shutdown::Both);
     Ok(())
 }
 
 async fn handle_inner(stream: &mut TcpStream, buf: &str, rand_pool: &[u8]) -> Result<HandleState> {
+    println!("Request from {}: {:?}", stream.peer_addr()?, buf);
     match buf {
         _ if buf.split_whitespace().next().is_none() => Ok(HandleState::Next),
         _ if buf.starts_with("QUIT") => Ok(HandleState::Quit),
@@ -69,7 +70,7 @@ async fn handle_inner(stream: &mut TcpStream, buf: &str, rand_pool: &[u8]) -> Re
             let peer_ip = stream.peer_addr()?.ip();
             let resp = format!("YOURIP {}\n", peer_ip);
             stream.write_all(resp.as_bytes()).await?;
-            //print!("{}", resp);
+            println!("Response: {:?}", resp);
             Ok(HandleState::Next)
         }
         _ if buf.starts_with("PING ") => {
@@ -79,17 +80,19 @@ async fn handle_inner(stream: &mut TcpStream, buf: &str, rand_pool: &[u8]) -> Re
                 .as_secs();
             let resp = format!("PONG {}\n", time_stamp);
             stream.write_all(resp.as_bytes()).await?;
-            //print!("{}", resp);
+            println!("Response: {:?}", resp);
             Ok(HandleState::Next)
         }
         _ if buf.starts_with("HI") => {
-            stream.write_all(b"HELLO 2.7(compatiable server)\n").await?;
+            const RESP: &str = "HELLO 2.7(compatiable server)\n";
+            stream.write_all(RESP.as_bytes()).await?;
+            println!("Response: {:?}", RESP);
             Ok(HandleState::Next)
         }
         _ if buf.starts_with("CAPABILITIES") => {
-            stream
-                .write_all(b"CAPABILITIES SERVER_HOST_AUTH UPLOAD_STATS\n")
-                .await?;
+            const RESP: &str = "CAPABILITIES SERVER_HOST_AUTH UPLOAD_STATS\n";
+            stream.write_all(RESP.as_bytes()).await?;
+            println!("Response: {:?}", RESP);
             Ok(HandleState::Next)
         }
         _ => Err(anyhow!("unknown command")),
@@ -141,7 +144,11 @@ async fn handle_upload(mut stream: &mut TcpStream, buf: &str) -> Result<HandleSt
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let ans = format!("Ok {} {}\n", size, time_stamp);
+    if upload_bytes > size {
+        // FIXME: unknown data loss even in loopback test
+        eprintln!("\x1B[31mDiff in req and res: {}\x1B[39m", upload_bytes - size);
+    }
+    let ans = format!("Ok {} {}\n", size - 1, time_stamp);
     stream.write_all(dbg!(ans).as_bytes()).await?;
     Ok(HandleState::Next)
 }
@@ -171,39 +178,16 @@ where
                 Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 Poll::Ready(Ok(n)) => n,
             };
-            dbg!([this.count,n]);
             if n == 0 {
+                println!("\x1B[31mEarly EOF\x1B[39m"); // FIXME: deal with EOF
                 return Poll::Ready(Ok(this.count));
-            }else{
+            } else {
                 this.count += n;
-                let last = this.buffer[n-1];
-                if last == b'\n'{
+                let last = this.buffer[n - 1];
+                if last == b'\n' {
                     return Poll::Ready(Ok(this.count));
                 }
             }
         }
     }
 }
-
-/*
-struct Count<R: Read + Unpin> {
-    reader: BufReader<R>,
-    count: usize,
-}
-
-impl<R: Read + Unpin> Future for Count<R> {
-    type Output = async_std::io::Result<usize>;
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-        loop {
-            let buf = futures_core::ready!(Pin::new(&mut this.reader).poll_fill_buf(cx))?;
-            let len = buf.len();
-            if len == 0 || buf.last() == Some(&b'\n') {
-                return Poll::Ready(Ok(this.count));
-            }
-            Pin::new(&mut this.reader).consume(len);
-            this.count += len;
-            dbg!(len);
-        }
-    }
-}*/

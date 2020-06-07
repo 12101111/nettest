@@ -34,13 +34,13 @@ impl Task for TcpuploadTask {
         let mut stream = TcpStream::connect_timeout(&self.addr, self.timeout)?;
         stream.set_read_timeout(Some(self.timeout))?;
         stream.set_write_timeout(Some(self.timeout))?;
-        info!("Upload {} Bytes to {}", self.size, self.addr);
+        info!("Upload {} MiB to {}", self.size, self.addr);
         let mut rand_pool = Vec::with_capacity(2 * MB);
         let mut rng = Xoshiro256Plus::from_entropy();
         for _ in 0..2 * MB {
             rand_pool.push(rng.gen_range(0x20, 0x7F));
         }
-        let size = self.size; //* MB;//FIXME: change back!!!
+        let size = self.size * MB;
         let ulstring = format!("UPLOAD {} 0\r\n", size);
         stream.write_all(ulstring.as_bytes())?;
         let mut rand_size = size - ulstring.len() - 1; // \r\n count into 1 byte, wierd
@@ -52,7 +52,7 @@ impl Task for TcpuploadTask {
         while rand_size > 0 {
             let start = rng.gen_range(0, MB);
             let len = rand_size.min(MB);
-            stream.write_all(&rand_pool[start..start+len])?;
+            stream.write_all(&rand_pool[start..start + len])?;
             rand_size -= len;
             let len_since_last_measure = old_size - rand_size;
             if len_since_last_measure >= step {

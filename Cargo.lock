@@ -607,11 +607,6 @@ dependencies = [
 [[package]]
 name = "tcpserver"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "rand",
- "rand_xoshiro",
-]
 
 [[package]]
 name = "textwrap"
