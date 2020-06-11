@@ -7,18 +7,15 @@ edition = '2018'
 [dependencies]
 rand_xoshiro = '0.4'
 anyhow = '1'
-#quiche = '0.3'
 
 [dependencies.async-std]
-version = "1"
-features = ["attributes"]
-
+version = '1'
+features = ['attributes']
 
 [dependencies.rand]
 version = '0.7'
 default-features = false
 features = ['getrandom']
-
 [patch.crates-io.rand]
 git = 'https://github.com/rust-random/rand.git'
 

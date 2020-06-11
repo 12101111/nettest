@@ -126,9 +126,9 @@ impl PingTask {
         });
         info!("PING ({}) {} bytes of data.", ip, size);
         let socket = if ip.is_ipv4() {
-            Socket::new(Domain::ipv4(), Type::dgram(), Some(Protocol::icmpv4()))
+            Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))
         } else if ip.is_ipv6() {
-            Socket::new(Domain::ipv6(), Type::dgram(), Some(Protocol::icmpv6()))
+            Socket::new(Domain::IPV6, Type::DGRAM, Some(Protocol::ICMPV6))
         } else {
             unreachable!("IP is either ipv4 or ipv6")
         };

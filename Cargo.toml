@@ -1,6 +1,6 @@
 [package]
 name = 'nettest'
-version = '0.1.0'
+version = '0.2.0'
 authors = ['12101111 <w12101111@gmail.com>']
 edition = '2018'
 
@@ -8,8 +8,8 @@ edition = '2018'
 rand_xoshiro = '0.4'
 log = '0.4'
 anyhow = '1'
-structopt = '0.3'
-quiche = '0.3'
+clap = "3.0.0-beta.1"
+quiche = '0.4'
 
 [dependencies.rand]
 version = '0.7'
@@ -25,4 +25,4 @@ git = 'https://github.com/rust-random/rand.git'
 git = 'https://github.com/rust-random/rand.git'
 
 [workspace]
-members = [".", "server", "tcpserver"]
+members = [".", "server"]

@@ -38,12 +38,12 @@ impl UdpingTask {
         } else {
             info!("Ping to {} using UDP", format_target);
         }
-        return Ok(Self {
+        Ok(Self {
             target,
             socket,
             seq: 0,
             size,
-        });
+        })
     }
 }
 

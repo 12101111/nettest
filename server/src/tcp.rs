@@ -145,7 +145,7 @@ async fn handle_upload(mut stream: &mut TcpStream, buf: &str) -> Result<HandleSt
         .unwrap()
         .as_secs();
     if upload_bytes > size {
-        // FIXME: unknown data loss even in loopback test
+        // FIXME: unknown data loss
         eprintln!("\x1B[31mDiff in req and res: {}\x1B[39m", upload_bytes - size);
     }
     let ans = format!("Ok {} {}\n", size - 1, time_stamp);

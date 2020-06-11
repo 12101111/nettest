@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
+use clap::Clap;
 use log::*;
 use nettest::*;
 use std::time::Duration;
-use structopt::StructOpt;
 
 static LOGGER: Logger = Logger;
 
@@ -22,51 +22,70 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
-#[derive(StructOpt)]
-#[structopt(about = "All-in-one network test tool")]
+#[derive(Clap)]
+#[clap(about = "All-in-one network test tool")]
 struct Opt {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     cmd: Command,
     /// Count of times to test
-    #[structopt(global = true, short, long)]
+    #[clap(global = true, short, long)]
     count: Option<usize>,
     /// Wait interval ms between echo test
-    #[structopt(global = true, short, long, default_value = "1000")]
+    #[clap(global = true, short, long, default_value = "1000")]
     interval: u64,
     /// Timeout of each test (in seconds)
-    #[structopt(global = true, short, long, default_value = "5")]
+    #[clap(global = true, short, long, default_value = "5")]
     timeout: u64,
     /// Length of test payload.
     /// The unit is byte in ping test and Megabyte in bandwidth test.
-    #[structopt(global = true, short, long, default_value = "60")]
+    #[clap(global = true, short, long, default_value = "60")]
     size: usize,
-    /// IP or hostname of target.
-    address: String,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clap)]
 pub enum Command {
     /// Measuring latency using ICMP or ICMPv6 echo"
     /// example: `nettest ping 127.0.0.1` or `nettest ping google.com`
-    Ping,
+    Ping {
+        /// IP or hostname of target.
+        address: String,
+    },
     /// Measuring latency of TCP shake hands
     /// example: `nettest tcping 127.0.0.1:8080` or `nettest ping github.com:443`
-    Tcping,
+    Tcping {
+        /// IP or hostname of target.
+        address: String,
+    },
     /// Measuring latency using UDP echo. use `socat -v UDP-LISTEN:8000,fork PIPE` to start a server"
     /// example: `nettest udping 127.0.0.1:8000`
-    Udping,
+    Udping {
+        /// IP or hostname of target.
+        address: String,
+    },
     /// Measuring TCP upload bandwidth.
-    Tcpupload,
+    Tcpupload {
+        /// IP or hostname of target.
+        address: String,
+    },
     /// Measuring QUIC upload bandwidth.
-    Quicupload,
+    Quicupload {
+        /// IP or hostname of target.
+        address: String,
+    },
     /// Measuring TCP download bandwidth.
-    Tcpdownload,
+    Tcpdownload {
+        /// IP or hostname of target.
+        address: String,
+    },
     /// Measuring QUIC download bandwidth.
-    Quicdownload,
+    Quicdownload {
+        /// IP or hostname of target.
+        address: String,
+    },
 }
 
 fn main() {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
     log::set_logger(&LOGGER).expect("Set logger failed");
     log::set_max_level(LevelFilter::Info);
     if let Err(e) = run(opt) {
@@ -81,12 +100,14 @@ fn run(opt: Opt) -> Result<()> {
     }
     use Command::*;
     let mut task: Box<dyn Task> = match opt.cmd {
-        Ping => Box::new(PingTask::new(&opt.address, opt.size, opt.timeout)?),
-        Tcping => Box::new(TcpingTask::new(&opt.address, opt.timeout)?),
-        Udping => Box::new(UdpingTask::new(&opt.address, opt.size, opt.timeout)?),
-        Tcpupload => Box::new(TcpuploadTask::new(&opt.address, opt.size, opt.timeout)?),
-        Tcpdownload => Box::new(TcpdownloadTask::new(&opt.address, opt.size, opt.timeout)?),
-        Quicdownload => Box::new(QuicdownloadTask::new(&opt.address, opt.size, opt.timeout)?),
+        Ping { address } => Box::new(PingTask::new(&address, opt.size, opt.timeout)?),
+        Tcping { address } => Box::new(TcpingTask::new(&address, opt.timeout)?),
+        Udping { address } => Box::new(UdpingTask::new(&address, opt.size, opt.timeout)?),
+        Tcpupload { address } => Box::new(TcpuploadTask::new(&address, opt.size, opt.timeout)?),
+        Tcpdownload { address } => Box::new(TcpdownloadTask::new(&address, opt.size, opt.timeout)?),
+        Quicdownload { address } => {
+            Box::new(QuicdownloadTask::new(&address, opt.size, opt.timeout)?)
+        }
         _ => todo!(),
     };
     let count = opt.count.unwrap_or(5);

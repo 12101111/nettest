@@ -1,7 +1,0 @@
-[package]
-name = "tcpserver"
-version = "0.1.0"
-authors = ["12101111 <w12101111@gmail.com>"]
-edition = "2018"
-
-[dependencies]
